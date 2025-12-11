@@ -5,6 +5,11 @@ const LANGUAGE_COLORS = {
     javascript: '#f7df1e',
     typescript: '#3178c6',
     python: '#3776ab',
+    java: '#ed8b00',
+    go: '#00add8',
+    rust: '#dea584',
+    cpp: '#00599c',
+    c: '#555555',
     unknown: '#888888'
 };
 
@@ -17,6 +22,33 @@ function buildGraph(parsedFiles, repoRoot) {
     const edges = [];
     const fileMap = new Map();
 
+    // Track how many files import each file (importedBy count)
+    const importedByCount = new Map();
+
+    // Helper to resolve import paths
+    const resolveImportPath = (modulePath, currentFilePath) => {
+        // Try different resolutions
+        const possiblePaths = [
+            modulePath,
+            modulePath + '.js',
+            modulePath + '.jsx',
+            modulePath + '.ts',
+            modulePath + '.tsx',
+            modulePath + '/index.js',
+            modulePath + '/index.ts',
+            modulePath + '/index.jsx',
+            modulePath + '/index.tsx'
+        ];
+
+        for (const possible of possiblePaths) {
+            const normalized = path.normalize(possible);
+            if (fileMap.has(normalized)) {
+                return fileMap.get(normalized).path;
+            }
+        }
+        return null;
+    };
+
     // Create a map of all files for quick lookup
     for (const file of parsedFiles) {
         fileMap.set(file.path, file);
@@ -27,10 +59,24 @@ function buildGraph(parsedFiles, repoRoot) {
         }
     }
 
+    // First pass: count importedBy for each file
+    for (const file of parsedFiles) {
+        for (const imp of file.imports) {
+            if (imp.isRelative) {
+                const targetPath = resolveImportPath(imp.module, file.path);
+                if (targetPath) {
+                    importedByCount.set(targetPath, (importedByCount.get(targetPath) || 0) + 1);
+                }
+            }
+        }
+    }
+
     // Create nodes
     for (let i = 0; i < parsedFiles.length; i++) {
         const file = parsedFiles[i];
         const fileName = path.basename(file.path);
+        const dirName = path.dirname(file.path);
+        const relativeDir = repoRoot ? path.relative(repoRoot, dirName) : dirName;
 
         nodes.push({
             id: file.path,
@@ -43,7 +89,10 @@ function buildGraph(parsedFiles, repoRoot) {
                 loc: file.loc,
                 complexity: file.complexity,
                 color: LANGUAGE_COLORS[file.language] || LANGUAGE_COLORS.unknown,
-                importCount: file.imports.filter(i => i.isRelative).length
+                importCount: file.imports.filter(i => i.isRelative).length,
+                importedByCount: importedByCount.get(file.path) || 0,
+                cluster: file.language,
+                directory: relativeDir
             }
         });
     }
@@ -109,15 +158,16 @@ function buildGraph(parsedFiles, repoRoot) {
 
 /**
  * Calculate node position in a circular/grid layout
+ * Centered around origin (0, 0) for proper 3D graph centering
  */
 function calculatePosition(index, total) {
-    // Use a spiral layout for better distribution
-    const radius = 150 + (index / total) * 300;
+    // Use a spiral layout for better distribution, centered at origin
+    const radius = 50 + (index / total) * 150;
     const angle = (index / total) * 2 * Math.PI * 3; // 3 rotations
 
     return {
-        x: 400 + Math.cos(angle) * radius,
-        y: 400 + Math.sin(angle) * radius
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius
     };
 }
 
