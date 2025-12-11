@@ -46,7 +46,7 @@ async function walkDirectory(dirPath, files = []) {
 
         return files;
     } catch (error) {
-        console.warn(`⚠️ Cannot read directory: ${dirPath}`);
+        console.warn(`[WARN] Cannot read directory: ${dirPath}`);
         return files;
     }
 }

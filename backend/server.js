@@ -22,5 +22,5 @@ app.get('/health', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 CodeDNA Backend running on http://localhost:${PORT}`);
+  console.log(`[SERVER] CodeDNA Backend running on http://localhost:${PORT}`);
 });

@@ -18,15 +18,15 @@ router.get('/analyze/:repoId', async (req, res) => {
             return res.status(404).json({ error: 'Repository not found' });
         }
 
-        console.log(`🔍 Analyzing repository: ${repoId}`);
-        console.log(`📁 Path: ${repo.repoPath}`);
+        console.log(`[ANALYZE] Analyzing repository: ${repoId}`);
+        console.log(`[ANALYZE] Path: ${repo.repoPath}`);
 
         // Walk directory and get all files
         const allFiles = await walkDirectory(repo.repoPath);
 
         // Filter for supported languages
         const supportedFiles = filterSupportedFiles(allFiles);
-        console.log(`📄 Found ${supportedFiles.length} supported files`);
+        console.log(`[ANALYZE] Found ${supportedFiles.length} supported files`);
 
         // Parse each file and extract metrics
         const parsedFiles = [];
@@ -35,7 +35,7 @@ router.get('/analyze/:repoId', async (req, res) => {
                 const result = await parseFile(filePath, repo.repoPath);
                 parsedFiles.push(result);
             } catch (err) {
-                console.warn(`⚠️ Failed to parse ${filePath}: ${err.message}`);
+                console.warn(`[WARN] Failed to parse ${filePath}: ${err.message}`);
             }
         }
 
@@ -43,11 +43,11 @@ router.get('/analyze/:repoId', async (req, res) => {
         const graph = buildGraph(parsedFiles, repo.repoPath);
 
         // Compute graph analytics (SCC, centrality, clustering, risks)
-        console.log(`📊 Computing graph analytics...`);
+        console.log(`[ANALYZE] Computing graph analytics...`);
         const analytics = computeGraphAnalytics(graph);
-        console.log(`✅ Found ${analytics.cycles.length} cycles, ${analytics.risks.length} risk items`);
+        console.log(`[OK] Found ${analytics.cycles.length} cycles, ${analytics.risks.length} risk items`);
 
-        console.log(`✅ Analysis complete: ${graph.nodes.length} nodes, ${graph.edges.length} edges`);
+        console.log(`[OK] Analysis complete: ${graph.nodes.length} nodes, ${graph.edges.length} edges`);
 
         res.json({
             success: true,
@@ -65,7 +65,7 @@ router.get('/analyze/:repoId', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Analysis error:', error);
+        console.error('[ERROR] Analysis error:', error);
         res.status(500).json({
             error: 'Failed to analyze repository',
             details: error.message

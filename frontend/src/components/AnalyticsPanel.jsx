@@ -43,24 +43,24 @@ export default function AnalyticsPanel({ analytics, onNodeHighlight, onClose }) 
     return (
         <div className="analytics-panel">
             <div className="analytics-header">
-                <h2>📊 Analytics</h2>
+                <h2>Analytics</h2>
                 <button className="close-btn" onClick={onClose}>×</button>
             </div>
 
             {/* Summary Cards */}
             <div className="summary-cards">
                 <div className={`summary-card ${cycles.length > 0 ? 'warning' : 'good'}`}>
-                    <span className="card-icon">🔄</span>
+                    <span className="card-icon">Cycles</span>
                     <span className="card-value">{cycles.length}</span>
                     <span className="card-label">Cycles</span>
                 </div>
                 <div className={`summary-card ${summary.highRiskCount > 0 ? 'danger' : 'good'}`}>
-                    <span className="card-icon">⚠️</span>
+                    <span className="card-icon">Risk</span>
                     <span className="card-value">{summary.highRiskCount}</span>
                     <span className="card-label">High Risk</span>
                 </div>
                 <div className="summary-card neutral">
-                    <span className="card-icon">📦</span>
+                    <span className="card-icon">Lang</span>
                     <span className="card-value">{Object.keys(clusters.byLanguage).length}</span>
                     <span className="card-label">Languages</span>
                 </div>
@@ -100,7 +100,7 @@ export default function AnalyticsPanel({ analytics, onNodeHighlight, onClose }) 
                     <div className="risks-tab">
                         {risks.length === 0 ? (
                             <div className="empty-state">
-                                <span>✅</span>
+                                <span>OK</span>
                                 <p>No architectural risks detected!</p>
                             </div>
                         ) : (
@@ -123,9 +123,9 @@ export default function AnalyticsPanel({ analytics, onNodeHighlight, onClose }) 
                                             ))}
                                         </div>
                                         <div className="risk-stats">
-                                            <span>📄 {risk.loc} LOC</span>
-                                            <span>🔀 {risk.complexity} complexity</span>
-                                            <span>📥 {risk.inDegree} imports</span>
+                                            <span>{risk.loc} LOC</span>
+                                            <span>{risk.complexity} complexity</span>
+                                            <span>{risk.inDegree} imports</span>
                                         </div>
                                     </div>
                                 ))}
@@ -138,7 +138,7 @@ export default function AnalyticsPanel({ analytics, onNodeHighlight, onClose }) 
                     <div className="cycles-tab">
                         {cycles.length === 0 ? (
                             <div className="empty-state">
-                                <span>✅</span>
+                                <span>OK</span>
                                 <p>No circular dependencies found!</p>
                             </div>
                         ) : (
@@ -177,7 +177,7 @@ export default function AnalyticsPanel({ analytics, onNodeHighlight, onClose }) 
 
                 {activeTab === 'centrality' && (
                     <div className="centrality-tab">
-                        <h4>📈 Most Connected Modules</h4>
+                        <h4>Most Connected Modules</h4>
                         <div className="centrality-list">
                             {centrality.topByDegree.map((node, idx) => (
                                 <div
@@ -189,17 +189,17 @@ export default function AnalyticsPanel({ analytics, onNodeHighlight, onClose }) 
                                     <span className="node-name">{node.label}</span>
                                     <div className="degree-stats">
                                         <span className="in-degree" title="Files that import this">
-                                            📥 {node.inDegree}
+                                            In: {node.inDegree}
                                         </span>
                                         <span className="out-degree" title="Files imported by this">
-                                            📤 {node.outDegree}
+                                            Out: {node.outDegree}
                                         </span>
                                     </div>
                                 </div>
                             ))}
                         </div>
 
-                        <h4>⭐ Highest Impact (PageRank)</h4>
+                        <h4>Highest Impact (PageRank)</h4>
                         <div className="centrality-list">
                             {centrality.topByPageRank.slice(0, 5).map((node, idx) => (
                                 <div
@@ -220,7 +220,7 @@ export default function AnalyticsPanel({ analytics, onNodeHighlight, onClose }) 
 
                 {activeTab === 'clusters' && (
                     <div className="clusters-tab">
-                        <h4>🗂️ By Language</h4>
+                        <h4>By Language</h4>
                         <div className="cluster-list">
                             {Object.entries(clusters.languageCounts).map(([lang, count]) => (
                                 <div key={lang} className="cluster-item">
@@ -230,7 +230,7 @@ export default function AnalyticsPanel({ analytics, onNodeHighlight, onClose }) 
                             ))}
                         </div>
 
-                        <h4>📁 By Directory</h4>
+                        <h4>By Directory</h4>
                         <div className="cluster-list">
                             {Object.entries(clusters.directoryCounts)
                                 .sort((a, b) => b[1] - a[1])
@@ -249,7 +249,7 @@ export default function AnalyticsPanel({ analytics, onNodeHighlight, onClose }) 
             {/* AI Suggestions Section */}
             <div className="ai-suggestions-section">
                 <div className="section-header">
-                    <span>🤖 AI Refactor Guidance</span>
+                    <span>AI Refactor Guidance</span>
                 </div>
 
                 {!refactorSuggestions && !loadingSuggestions && (

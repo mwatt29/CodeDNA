@@ -10,19 +10,19 @@ let anthropic = null;
 try {
     if (process.env.OPENAI_API_KEY) {
         openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-        console.log('✅ OpenAI configured');
+        console.log('[OK] OpenAI configured');
     }
 } catch (error) {
-    console.warn('⚠️ OpenAI not configured');
+    console.warn('[WARN] OpenAI not configured');
 }
 
 try {
     if (process.env.ANTHROPIC_API_KEY) {
         anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-        console.log('✅ Claude/Anthropic configured');
+        console.log('[OK] Claude/Anthropic configured');
     }
 } catch (error) {
-    console.warn('⚠️ Claude/Anthropic not configured');
+    console.warn('[WARN] Claude/Anthropic not configured');
 }
 
 /**
@@ -82,7 +82,7 @@ router.post('/ai/summarize', async (req, res) => {
             });
         }
 
-        console.log(`🤖 Generating AI summary for: ${filePath} (using ${provider})`);
+        console.log(`[AI] Generating summary for: ${filePath} (using ${provider})`);
 
         const maxContent = 8000;
         const truncatedContent = fileContent.length > maxContent
@@ -106,7 +106,7 @@ ${truncatedContent}`;
         });
 
     } catch (error) {
-        console.error('❌ AI summary error:', error);
+        console.error('[ERROR] AI summary error:', error);
         res.status(500).json({
             error: 'Failed to generate summary',
             details: error.message
@@ -131,7 +131,7 @@ router.post('/ai/refactor', async (req, res) => {
             });
         }
 
-        console.log(`🤖 Generating refactor suggestions (using ${provider})`);
+        console.log(`[AI] Generating refactor suggestions (using ${provider})`);
 
         // Build context for the AI
         let context = 'You are an expert software architect analyzing a codebase for architectural issues.\n\n';
@@ -184,7 +184,7 @@ Format each suggestion with a clear title and explanation. Be specific about fil
         });
 
     } catch (error) {
-        console.error('❌ Refactor guidance error:', error);
+        console.error('[ERROR] Refactor guidance error:', error);
         res.status(500).json({
             error: 'Failed to generate refactor guidance',
             details: error.message

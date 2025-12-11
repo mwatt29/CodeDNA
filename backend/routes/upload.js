@@ -26,8 +26,8 @@ router.post('/uploadRepo', async (req, res) => {
         const repoId = uuidv4();
         const repoPath = path.join(os.tmpdir(), `codedna_${repoId}`);
 
-        console.log(`📥 Cloning repository: ${repoUrl}`);
-        console.log(`📁 Target path: ${repoPath}`);
+        console.log(`[CLONE] Cloning repository: ${repoUrl}`);
+        console.log(`[CLONE] Target path: ${repoPath}`);
 
         // Clone the repository
         const git = simpleGit();
@@ -40,7 +40,7 @@ router.post('/uploadRepo', async (req, res) => {
             createdAt: new Date().toISOString()
         });
 
-        console.log(`✅ Repository cloned successfully: ${repoId}`);
+        console.log(`[OK] Repository cloned successfully: ${repoId}`);
 
         res.json({
             success: true,
@@ -49,7 +49,7 @@ router.post('/uploadRepo', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Clone error:', error);
+        console.error('[ERROR] Clone error:', error);
         res.status(500).json({
             error: 'Failed to clone repository',
             details: error.message

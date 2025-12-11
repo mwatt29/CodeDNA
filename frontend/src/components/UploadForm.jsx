@@ -27,7 +27,7 @@ export default function UploadForm({ onAnalyzed, isLoading, setIsLoading }) {
 
         try {
             // Step 1: Clone repository
-            setStatus('🔄 Cloning repository...');
+            setStatus('Cloning repository...');
             const uploadResponse = await fetch('http://localhost:3001/api/uploadRepo', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -42,7 +42,7 @@ export default function UploadForm({ onAnalyzed, isLoading, setIsLoading }) {
             const { repoId } = await uploadResponse.json();
 
             // Step 2: Analyze repository
-            setStatus('🔍 Analyzing codebase...');
+            setStatus('Analyzing codebase...');
             const analyzeResponse = await fetch(`http://localhost:3001/api/analyze/${repoId}`);
 
             if (!analyzeResponse.ok) {
@@ -52,7 +52,7 @@ export default function UploadForm({ onAnalyzed, isLoading, setIsLoading }) {
 
             const result = await analyzeResponse.json();
 
-            setStatus('✅ Analysis complete!');
+            setStatus('Analysis complete!');
             onAnalyzed(result);
 
         } catch (err) {
@@ -67,7 +67,7 @@ export default function UploadForm({ onAnalyzed, isLoading, setIsLoading }) {
         <div className="upload-form-container">
             <div className="upload-card">
                 <div className="logo">
-                    <span className="logo-icon">🧬</span>
+                    <span className="logo-icon">DNA</span>
                     <h1>CodeDNA</h1>
                 </div>
                 <p className="tagline">Visualize your codebase structure and dependencies</p>
@@ -86,26 +86,26 @@ export default function UploadForm({ onAnalyzed, isLoading, setIsLoading }) {
                             {isLoading ? (
                                 <span className="spinner"></span>
                             ) : (
-                                '🔬 Analyze'
+                                'Analyze'
                             )}
                         </button>
                     </div>
                 </form>
 
                 {status && <p className="status-message">{status}</p>}
-                {error && <p className="error-message">❌ {error}</p>}
+                {error && <p className="error-message">{error}</p>}
 
                 <div className="features">
                     <div className="feature">
-                        <span>📊</span>
+                        <span></span>
                         <span>Dependency Graph</span>
                     </div>
                     <div className="feature">
-                        <span>📏</span>
+                        <span></span>
                         <span>Complexity Metrics</span>
                     </div>
                     <div className="feature">
-                        <span>🤖</span>
+                        <span></span>
                         <span>AI Summaries</span>
                     </div>
                 </div>
