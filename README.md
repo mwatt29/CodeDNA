@@ -283,5 +283,5 @@ This project is licensed under the ISC License.
 ---
 
 <p align="center">
-  Made with 🧬 by <a href="https://github.com/yourusername">Your Name</a>
+  Made with 🧬 by <a href="https://github.com/mwatt29">Murray Watt</a>
 </p>
