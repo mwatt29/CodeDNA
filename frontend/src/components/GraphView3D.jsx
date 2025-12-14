@@ -6,9 +6,12 @@ import {
     applyColorScheme,
     SIZE_METRICS,
     COLOR_SCHEMES,
-    getLanguageIcon
+    getLanguageIcon,
+    getIconPath,
+    createTextSprite
 } from '../utils/graphUtils3D';
 import Threads from './Threads';
+import ColorLegendPanel from './ColorLegendPanel';
 import './GraphView3D.css';
 
 export default function GraphView3D({
@@ -31,6 +34,12 @@ export default function GraphView3D({
     const [colorScheme, setColorScheme] = useState(COLOR_SCHEMES.LANGUAGE);
     const [showClusters, setShowClusters] = useState(true);
     const [bloomEnabled, setBloomEnabled] = useState(true);
+    const [renderMode, setRenderMode] = useState('hybrid'); // 'icons', 'spheres', 'hybrid'
+    const [showLegend, setShowLegend] = useState(false);
+
+    // Texture loader for icons
+    const textureCache = useRef(new Map());
+    const textureLoader = useMemo(() => new THREE.TextureLoader(), []);
 
     // Build set of nodes in cycles for highlighting
     const cycleNodes = useMemo(() => {
@@ -68,15 +77,38 @@ export default function GraphView3D({
         };
     }, [graph]);
 
+    // Calculate PageRank threshold for showing permanent labels (top 10%)
+    const pageRankThreshold = useMemo(() => {
+        if (!analytics?.centrality?.byNode) return 0;
+        const ranks = Object.values(analytics.centrality.byNode)
+            .map(c => c.pageRank)
+            .sort((a, b) => b - a);
+        // Top 10% threshold
+        const index = Math.floor(ranks.length * 0.1);
+        return ranks[index] || 0;
+    }, [analytics]);
+
+    // Helper to get directory depth from path
+    const getPathDepth = useCallback((path) => {
+        if (!path) return 0;
+        return (path.match(/\//g) || []).length;
+    }, []);
+
     // Convert ReactFlow format to force-graph format with enhanced properties
     const graphData = useMemo(() => {
         // Build connection counts for edge strength
         const connectionCounts = new Map();
         const importedByCounts = new Map();
+        const nodeMap = new Map();
 
         for (const edge of graph.edges) {
             connectionCounts.set(edge.source, (connectionCounts.get(edge.source) || 0) + 1);
             importedByCounts.set(edge.target, (importedByCounts.get(edge.target) || 0) + 1);
+        }
+
+        // Build node map for link distance calculation
+        for (const node of graph.nodes) {
+            nodeMap.set(node.id, node);
         }
 
         const nodes = graph.nodes.map(node => {
@@ -101,15 +133,29 @@ export default function GraphView3D({
             return baseNode;
         });
 
-        const links = graph.edges.map(edge => ({
-            source: edge.source,
-            target: edge.target,
-            // Edge strength based on number of connections
-            strength: Math.min(1, 0.3 + (connectionCounts.get(edge.source) || 1) * 0.1)
-        }));
+        // Calculate links with directory-based distance
+        const links = graph.edges.map(edge => {
+            const sourceNode = nodeMap.get(edge.source);
+            const targetNode = nodeMap.get(edge.target);
+            const sourceDepth = getPathDepth(sourceNode?.data?.path);
+            const targetDepth = getPathDepth(targetNode?.data?.path);
+
+            // Files in different directories get longer links
+            const depthDiff = Math.abs(sourceDepth - targetDepth);
+            const baseDistance = 80;
+            const distanceMultiplier = 1 + depthDiff * 0.25;
+
+            return {
+                source: edge.source,
+                target: edge.target,
+                distance: baseDistance * distanceMultiplier,
+                strength: Math.min(1, 0.3 + (connectionCounts.get(edge.source) || 1) * 0.1)
+            };
+        });
 
         return { nodes, links };
-    }, [graph, sizeMetric, colorScheme, colorStats]);
+    }, [graph, sizeMetric, colorScheme, colorStats, getPathDepth]);
+
 
     // Setup enhanced lighting and centering on mount
     useEffect(() => {
@@ -143,12 +189,19 @@ export default function GraphView3D({
                 console.warn('Could not add lights:', e);
             }
 
-            // Configure d3 forces for better centering
+            // Configure d3 forces for better spread and clarity
             fg.d3Force('center', null); // Remove default center
-            fg.d3Force('charge').strength(-200); // Increase repulsion
+            fg.d3Force('charge').strength(-350); // Strong repulsion to spread nodes
+
+            // Configure link distance based on our calculated distances
+            if (fg.d3Force('link')) {
+                fg.d3Force('link')
+                    .distance(link => link.distance || 100)
+                    .strength(link => link.strength || 0.5);
+            }
 
             // Set initial camera position to center view
-            fg.cameraPosition({ x: 0, y: 0, z: 400 }, { x: 0, y: 0, z: 0 }, 0);
+            fg.cameraPosition({ x: 0, y: 0, z: 500 }, { x: 0, y: 0, z: 0 }, 0);
         }, 500);
 
         return () => clearTimeout(timeoutId);
@@ -195,7 +248,7 @@ export default function GraphView3D({
         setTooltipPos({ x: e.clientX, y: e.clientY });
     }, []);
 
-    // Custom node rendering with enhanced materials
+    // Custom node rendering with enhanced materials, icons, labels, and risk effects
     const nodeThreeObject = useCallback((node) => {
         const group = new THREE.Group();
 
@@ -205,9 +258,15 @@ export default function GraphView3D({
         const isDimmed = selectedNode && selectedNode.id !== node.id && !isConnected(node, selectedNode, graphData.links);
         const isInCycle = cycleNodes.has(node.id);
         const riskLevel = riskNodes.get(node.id);
+        const nodePageRank = analytics?.centrality?.byNode?.[node.id]?.pageRank || 0;
+        const isImportant = nodePageRank >= pageRankThreshold && pageRankThreshold > 0;
 
         const scale = isHovered ? 1.25 : isSelected || isHighlighted ? 1.15 : 1;
         const baseSize = node.val * scale;
+
+        // Determine if this is a high-complexity or high-risk node (use different geometry)
+        const isHighComplexity = (node.complexity || 0) > 20;
+        const isHighRisk = riskLevel === 'high';
 
         // Determine color based on cycle/risk status
         let nodeColor = node.color;
@@ -216,10 +275,25 @@ export default function GraphView3D({
             emissiveColor = '#ef4444'; // Red for cycle
         } else if (riskLevel === 'high') {
             emissiveColor = '#f97316'; // Orange for high risk
+        } else if (riskLevel === 'medium') {
+            emissiveColor = '#eab308'; // Yellow for medium risk
         }
 
-        // Main sphere with physical material (glass-like)
-        const geometry = new THREE.SphereGeometry(baseSize, 32, 32);
+        // Calculate final emissive intensity based on state
+        const baseEmissive = isSelected || isHighlighted ? 0.5 : isHovered ? 0.3 : 0.08;
+        const riskEmissive = riskLevel === 'high' ? 0.4 : riskLevel === 'medium' ? 0.25 : 0;
+        const cycleEmissive = isInCycle ? 0.35 : 0;
+        const finalEmissive = Math.max(baseEmissive, riskEmissive, cycleEmissive);
+
+        // Use Icosahedron for high-complexity/risk nodes to suggest "roughness"
+        let geometry;
+        if (isHighComplexity || isHighRisk) {
+            geometry = new THREE.IcosahedronGeometry(baseSize, 1);
+        } else {
+            geometry = new THREE.SphereGeometry(baseSize, 32, 32);
+        }
+
+        // Main shape with physical material (glass-like)
         const material = new THREE.MeshPhysicalMaterial({
             color: new THREE.Color(nodeColor),
             metalness: 0.2,
@@ -230,10 +304,10 @@ export default function GraphView3D({
             clearcoat: 0.5,
             clearcoatRoughness: 0.3,
             emissive: new THREE.Color(emissiveColor),
-            emissiveIntensity: isSelected || isHighlighted ? 0.5 : isHovered ? 0.3 : isInCycle ? 0.25 : riskLevel === 'high' ? 0.2 : 0.08
+            emissiveIntensity: finalEmissive
         });
-        const sphere = new THREE.Mesh(geometry, material);
-        group.add(sphere);
+        const mainShape = new THREE.Mesh(geometry, material);
+        group.add(mainShape);
 
         // Inner core glow
         const coreGeometry = new THREE.SphereGeometry(baseSize * 0.5, 16, 16);
@@ -256,6 +330,32 @@ export default function GraphView3D({
         const glow = new THREE.Mesh(glowGeometry, glowMaterial);
         group.add(glow);
 
+        // Risk/Cycle pulsing outer glow effect
+        if (riskLevel === 'high' || isInCycle) {
+            const pulseGeometry = new THREE.SphereGeometry(baseSize * 1.8, 16, 16);
+            const pulseMaterial = new THREE.MeshBasicMaterial({
+                color: isInCycle ? 0xef4444 : 0xf97316,
+                transparent: true,
+                opacity: 0.15,
+                side: THREE.BackSide
+            });
+            const pulseOrb = new THREE.Mesh(pulseGeometry, pulseMaterial);
+            group.add(pulseOrb);
+        }
+
+        // Medium risk glow
+        if (riskLevel === 'medium' && !isInCycle) {
+            const warningGeometry = new THREE.SphereGeometry(baseSize * 1.6, 16, 16);
+            const warningMaterial = new THREE.MeshBasicMaterial({
+                color: 0xeab308,
+                transparent: true,
+                opacity: 0.1,
+                side: THREE.BackSide
+            });
+            const warningOrb = new THREE.Mesh(warningGeometry, warningMaterial);
+            group.add(warningOrb);
+        }
+
         // Selection ring
         if (isSelected) {
             const ringGeometry = new THREE.TorusGeometry(baseSize * 1.6, 1.5, 8, 32);
@@ -269,8 +369,42 @@ export default function GraphView3D({
             group.add(ring);
         }
 
+        // Add permanent text label for high-centrality (important) nodes
+        if (isImportant && !isDimmed) {
+            const label = createTextSprite(node.name, '#ffffff');
+            label.position.set(0, baseSize + 10, 0);
+            group.add(label);
+        }
+
+        // File type icon overlay for important nodes in hybrid mode
+        if ((renderMode === 'icons' || (renderMode === 'hybrid' && isImportant)) && !isDimmed) {
+            // Load icon texture
+            const iconPath = getIconPath(node.language);
+            if (!textureCache.current.has(iconPath)) {
+                const texture = textureLoader.load(iconPath);
+                texture.colorSpace = THREE.SRGBColorSpace;
+                textureCache.current.set(iconPath, texture);
+            }
+            const iconTexture = textureCache.current.get(iconPath);
+
+            if (iconTexture) {
+                const iconMaterial = new THREE.SpriteMaterial({
+                    map: iconTexture,
+                    transparent: true,
+                    opacity: 0.9,
+                    depthTest: false
+                });
+                const iconSprite = new THREE.Sprite(iconMaterial);
+                const iconScale = Math.max(12, baseSize * 0.8);
+                iconSprite.scale.set(iconScale, iconScale, 1);
+                iconSprite.position.set(baseSize + 8, baseSize + 5, 0);
+                group.add(iconSprite);
+            }
+        }
+
         return group;
-    }, [hoveredNode, selectedNode, highlightedNode, graphData.links, cycleNodes, riskNodes]);
+    }, [hoveredNode, selectedNode, highlightedNode, graphData.links, cycleNodes, riskNodes, analytics, pageRankThreshold, renderMode, textureLoader]);
+
 
     // Check if two nodes are connected
     function isConnected(node1, node2, links) {
@@ -363,19 +497,31 @@ export default function GraphView3D({
                             <option value={COLOR_SCHEMES.HEATMAP}>Heatmap</option>
                         </select>
                     </div>
+                    <div className="control-group">
+                        <label>Style:</label>
+                        <select
+                            value={renderMode}
+                            onChange={(e) => setRenderMode(e.target.value)}
+                            className="control-select"
+                        >
+                            <option value="hybrid">Hybrid</option>
+                            <option value="spheres">Spheres</option>
+                            <option value="icons">Icons</option>
+                        </select>
+                    </div>
                     <button
                         className={`control-toggle ${bloomEnabled ? 'active' : ''}`}
                         onClick={() => setBloomEnabled(!bloomEnabled)}
                         title="Toggle bloom effect"
                     >
-                        ✨ Bloom
+                        Bloom
                     </button>
                     <button
                         className={`control-toggle ${showAnalytics ? 'active' : ''}`}
                         onClick={onToggleAnalytics}
                         title="Toggle analytics panel"
                     >
-                        📊 Analytics
+                        Analytics
                     </button>
                 </div>
 
@@ -408,7 +554,7 @@ export default function GraphView3D({
                     linkColor={linkColor}
                     linkWidth={linkWidth}
                     linkOpacity={0.7}
-                    linkCurvature={0.25}
+                    linkCurvature={0.15}
                     linkDirectionalParticles={2}
                     linkDirectionalParticleWidth={2}
                     linkDirectionalParticleSpeed={0.006}
@@ -418,10 +564,10 @@ export default function GraphView3D({
                     enableNodeDrag={true}
                     enableNavigationControls={true}
                     controlType="orbit"
-                    d3VelocityDecay={0.4}
-                    d3AlphaDecay={0.02}
-                    cooldownTicks={200}
-                    warmupTicks={100}
+                    d3VelocityDecay={0.35}
+                    d3AlphaDecay={0.015}
+                    cooldownTicks={300}
+                    warmupTicks={150}
                 />
 
                 {/* Controls hint */}
@@ -465,6 +611,14 @@ export default function GraphView3D({
                         <div className="tooltip-path">{hoveredNode.path}</div>
                     </div>
                 )}
+
+                {/* Color Legend Panel */}
+                <ColorLegendPanel
+                    isOpen={showLegend}
+                    onToggle={() => setShowLegend(!showLegend)}
+                    colorScheme={colorScheme}
+                    languagesInUse={languageList.map(l => l.lang)}
+                />
             </div>
         </div>
     );
