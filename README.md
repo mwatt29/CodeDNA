@@ -25,8 +25,13 @@
 - **Complexity Metrics** — Lines of code, cyclomatic complexity per file
 
 ### 🌐 Interactive 3D Visualization
-- **Force-Directed Graph** — Physics-based layout that naturally clusters related files
-- **Language-based Coloring** — Instant visual identification of file types
+- **Force-Directed Graph** — Physics-based layout with directory-aware clustering
+- **File Type Icons** — Language icons (JS, TS, PY, etc.) displayed on important nodes
+- **Smart Labels** — Permanent labels on high-PageRank files for easy navigation
+- **Risk Glow Effects** — Red/orange/yellow halos highlight architectural issues
+- **Shape Indicators** — Spheres for normal files, faceted shapes for complex/risky files
+- **Color Legend Panel** — Toggleable guide explaining all visual elements
+- **Style Modes** — Switch between Hybrid, Spheres, or Icons rendering
 - **Click-to-Inspect** — Select any node to view file details, metrics, and AI summaries
 - **Zoom, Pan, Rotate** — Full 3D navigation with mouse/touch controls
 
@@ -139,13 +144,18 @@ CodeDNA/
 │       └── graphAnalytics.js  # Tarjan, PageRank, risk scoring
 │
 └── frontend/
+    ├── public/
+    │   └── icons/             # File type SVG icons (JS, TS, PY, etc.)
     └── src/
         ├── App.jsx            # Main application component
-        └── components/
-            ├── UploadForm.jsx     # GitHub URL / repo input
-            ├── GraphView3D.jsx    # Three.js 3D visualization
-            ├── AnalyticsPanel.jsx # Cycles, risks, centrality UI
-            └── FileInspector.jsx  # Node detail sidebar
+        ├── components/
+        │   ├── UploadForm.jsx     # GitHub URL / repo input
+        │   ├── GraphView3D.jsx    # Three.js 3D visualization
+        │   ├── ColorLegendPanel.jsx # Toggleable visual guide
+        │   ├── AnalyticsPanel.jsx # Cycles, risks, centrality UI
+        │   └── FileInspector.jsx  # Node detail sidebar
+        └── utils/
+            └── graphUtils3D.js    # 3D rendering utilities
 ```
 
 ---
@@ -206,17 +216,39 @@ Get refactoring suggestions based on analytics.
 
 ---
 
-## 🎨 Language Color Legend
+## 🎨 Visual Guide
 
-| Language   | Color                                                       |
-|------------|-------------------------------------------------------------|
-| JavaScript | ![#f7df1e](https://via.placeholder.com/15/f7df1e/f7df1e.png) `#f7df1e` |
-| TypeScript | ![#3178c6](https://via.placeholder.com/15/3178c6/3178c6.png) `#3178c6` |
-| Python     | ![#3776ab](https://via.placeholder.com/15/3776ab/3776ab.png) `#3776ab` |
-| Java       | ![#ed8b00](https://via.placeholder.com/15/ed8b00/ed8b00.png) `#ed8b00` |
-| Go         | ![#00add8](https://via.placeholder.com/15/00add8/00add8.png) `#00add8` |
-| Rust       | ![#dea584](https://via.placeholder.com/15/dea584/dea584.png) `#dea584` |
-| C/C++      | ![#00599c](https://via.placeholder.com/15/00599c/00599c.png) `#00599c` |
+### Language Colors
+
+| Language   | Color | Icon |
+|------------|-------|------|
+| JavaScript | ![#f0db4f](https://via.placeholder.com/15/f0db4f/f0db4f.png) `#f0db4f` | JS |
+| TypeScript | ![#007acc](https://via.placeholder.com/15/007acc/007acc.png) `#007acc` | TS |
+| React JSX/TSX | ![#61dafb](https://via.placeholder.com/15/61dafb/61dafb.png) `#61dafb` | JSX/TSX |
+| Python     | ![#306998](https://via.placeholder.com/15/306998/306998.png) `#306998` | PY |
+| Java       | ![#f89820](https://via.placeholder.com/15/f89820/f89820.png) `#f89820` | JV |
+| Go         | ![#00add8](https://via.placeholder.com/15/00add8/00add8.png) `#00add8` | GO |
+| Rust       | ![#ce422b](https://via.placeholder.com/15/ce422b/ce422b.png) `#ce422b` | RS |
+| C++        | ![#659ad2](https://via.placeholder.com/15/659ad2/659ad2.png) `#659ad2` | C++ |
+| CSS        | ![#264de4](https://via.placeholder.com/15/264de4/264de4.png) `#264de4` | CSS |
+| HTML       | ![#e34c26](https://via.placeholder.com/15/e34c26/e34c26.png) `#e34c26` | HTML |
+| Vue        | ![#42b883](https://via.placeholder.com/15/42b883/42b883.png) `#42b883` | VUE |
+
+### Risk Level Indicators
+
+| Glow Color | Meaning | Description |
+|------------|---------|-------------|
+| 🔴 Red | Circular Dependency | File is part of a circular import chain |
+| 🟠 Orange | High Risk | High complexity or too many dependencies |
+| 🟡 Yellow | Medium Risk | Moderate complexity or coupling |
+| 🟢 Green | Low Risk | Well-structured, manageable file |
+
+### Node Shapes
+
+| Shape | Meaning |
+|-------|---------|
+| ⚪ Sphere | Normal complexity file |
+| 💠 Faceted (Icosahedron) | High complexity (>20) or high-risk file |
 
 ---
 
